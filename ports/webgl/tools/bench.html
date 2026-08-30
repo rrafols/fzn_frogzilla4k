@@ -1,0 +1,99 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Frogzilla — bench</title>
+<!--
+  Frame cost, for `make bench`.  Renders 120 frames spread over the timeline as
+  fast as it can - no requestAnimationFrame, so this is throughput rather than
+  what the intro feels like - and reports where the time goes.
+
+    make bench                      the whole timeline
+    make bench LO=17000 HI=86000    just the city, which is all of the cost
+
+  The intro is a software vertex pipeline: every vertex is transformed in JS,
+  because that is what keeps the arithmetic identical to the macOS port's.  So
+  `build city` is the transform itself, and `flush` is what it costs to hand
+  the result to the GPU.  The city is built once and drawn twice - see
+  glfixed.js's captureBegin - so `captureEmit` reading zero is it working.
+-->
+<canvas id="c" width="640" height="480"></canvas>
+<script type="module">
+import { createGL, RENDER_W, RENDER_H } from '../src/intro.js';
+import { drawFrame } from '../src/frame.js';
+
+const q = new URLSearchParams(location.search);
+const LO = +(q.get('lo') || 200), HI = +(q.get('hi') || 102200);
+const N = 120;
+const MS = [];
+for (let i = 0; i < N; i++) MS.push(LO + i * (HI - LO) / (N - 1));
+
+const view = document.getElementById('c');
+const g = createGL(view);
+const gl = view.getContext('webgl2');
+
+const t = { glow: 0, build: 0, emit: 0, flush: 0, frame: 0, present: 0, finish: 0 };
+let calls = 0, verts = 0, tris = 0;
+
+const time = (o, k, bin) => {
+  if (!o[k]) return;
+  const f = o[k].bind(o);
+  o[k] = (...a) => { const s = performance.now(); const r = f(...a); t[bin] += performance.now() - s; return r; };
+};
+time(g, 'copyTexImageRGB', 'glow');
+time(g, 'captureEmit', 'emit');
+time(g, 'present', 'present');
+
+// captureBegin..captureEnd is the one build of the city.
+let t0 = 0;
+const cb = g.captureBegin.bind(g), ce = g.captureEnd.bind(g);
+g.captureBegin = () => { t0 = performance.now(); return cb(); };
+g.captureEnd = () => { const r = ce(); t.build += performance.now() - t0; return r; };
+
+const flush = g.flush.bind(g);
+g.flush = () => {
+  if (g.batchKind === 1 && (g.batchCap || g.idxN)) {
+    calls++;
+    verts += g.batchCap ? g.capVtx.n / 14 : g.tri.n / 10;
+    tris += (g.batchCap ? g.capIdxN : g.idxN) / 3;
+  } else if (g.batchKind === 2 && g.sp.n) { calls++; verts += g.sp.n / 12; }
+  const s = performance.now();
+  const r = flush();
+  t.flush += performance.now() - s;
+  return r;
+};
+
+for (const ms of MS) { g.beginFrame(); drawFrame(g, ms); g.present(RENDER_W, RENDER_H); }
+for (const k in t) t[k] = 0;
+calls = 0; verts = 0; tris = 0;
+gl.finish();
+
+const start = performance.now();
+for (const ms of MS) {
+  const a = performance.now();
+  g.beginFrame();
+  drawFrame(g, ms);
+  t.frame += performance.now() - a;
+  g.present(RENDER_W, RENDER_H);
+}
+const s = performance.now();
+gl.finish();
+t.finish = performance.now() - s;
+const total = performance.now() - start;
+
+const per = v => (v / N).toFixed(2).padStart(7) + ' ms';
+window.__verify = { unexpected: [], lines: [
+  N + ' frames at 640x480, ms ' + LO + '..' + HI,
+  '',
+  'per frame          ' + per(total) + '   (' + (1000 * N / total).toFixed(1) + ' fps)',
+  '  drawFrame        ' + per(t.frame),
+  '    build city     ' + per(t.build) + '   transform + lighting, once per frame',
+  '    captureEmit    ' + per(t.emit) + '   second copy of the city (0 = drawn from the same buffer)',
+  '    flush          ' + per(t.flush) + '   bufferData + draw calls',
+  '    glow copy      ' + per(t.glow) + '   the 256x256 pass-three frame into the glow texture',
+  '  present          ' + per(t.present),
+  '  finish, trailing ' + per(t.finish) + '   GPU still owing at the end',
+  '',
+  'draw calls         ' + (calls / N).toFixed(1).padStart(7) + '      /frame',
+  'vertices           ' + String(Math.round(verts / N)).padStart(7) + '      /frame drawn (the city counts twice)',
+  'triangles          ' + String(Math.round(tris / N)).padStart(7) + '      /frame',
+] };
+</script>

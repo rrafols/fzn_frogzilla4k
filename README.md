@@ -14,6 +14,7 @@ The Fuzzion 4k intro *Frogzilla* (2004, Euskal Encounter XII), and its ports.
     ports/
       win32/         the original, as it stood in December 2004
       macos-x86_64/  Intel macOS: CGL, CoreAudio, CoreText
+      webgl/         the browser: WebGL 2, Web Audio, no build step
     packers/
       onekpaq64/     64-bit port of the oneKpaq decompressor, for any x86-64 port
 
@@ -48,6 +49,13 @@ Each port builds independently, from its own directory.
 
     cd ports/macos-x86_64 && make        # -> ./frogzilla, a 6389-byte Mach-O
     cd ports/win32/src    && build.bat   # needs DOS/Windows and nasm on the PATH
+
+`ports/webgl/` has no build: it is ES modules, served as they are. `make serve`
+prints the URL. `make bundle` flattens it into a single `build/frogzilla.html`
+that opens by double-clicking, and `make pack` minifies and roadrolls that down
+to a ~25 KB self-contained page. `make verify` renders the same thirteen frames
+the macOS port does and compares them; `make audio` mixes the tune in node and
+compares it with `song.wav`.
 
 ## A note on the Win32 tree
 

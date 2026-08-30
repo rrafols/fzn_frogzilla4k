@@ -1,0 +1,6 @@
+build/
+ports/macos-x86_64/frogzilla
+*.o
+*.pyc
+__pycache__/
+.DS_Store
