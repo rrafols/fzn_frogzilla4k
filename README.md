@@ -2,10 +2,7 @@
 
 The Fuzzion 4k intro *Frogzilla* (2004, Euskal Encounter XII), and its ports.
 
-A city at night, seen from a handful of cameras while traffic runs its loops;
-then a frog the size of a skyscraper lands on it and the buildings come down.
-Everything bright bleeds, because the whole picture is rendered a second time
-into a 256x256 texture and added back through six mip levels.
+![Screenshot](screenshot.jpg)
 
 ## Layout
 
