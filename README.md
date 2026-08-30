@@ -87,4 +87,4 @@ Original intro by **Fuzzion**, 2004 — code by pain, bp and ufix, music by
 wonder, module tools by ccm, packed with 20to4. Released at Euskal Encounter
 XII. The ports keep the original data intact.
 
-**Port to macOS x86_64 done with heavy usage of Claude**.
+**Port to macOS x86_64 & WebGL done with heavy usage of Claude**.
